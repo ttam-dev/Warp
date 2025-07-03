@@ -15,11 +15,15 @@ local Assert = require(Util.Assert)
 local Signal = require(script.Signal)
 local Buffer = require(Util.Buffer)
 
+local onSpamSignal = Signal("Warp_OnSpamSignal")
+
 if IsServer then
 	require(Server.ServerProcess).start()
 else
 	require(Client.ClientProcess).start()
 end
+
+Index.OnSpamSignal = onSpamSignal
 
 function Index.Server(Identifier: string, conf: Type.ServerConf?): Type.Server
 	Assert(IsServer, `[Warp]: Calling .Server({Identifier}) on client side (expected server side)`)
@@ -35,28 +39,47 @@ end
 function Index.fromServerArray(arrays: { string } | { [string]: Type.ServerConf }): Type.fromServerArray
 	Assert(IsServer, `[Warp]: Calling .fromServerArray({arrays}) on client side (expected server side)`)
 	Assert(typeof(arrays) == "table", "[Warp]: Array must be a table type, got {typeof(arrays)}")
+
 	local copy: { [string]: Type.Server } = {}
-	for param1, param2: string | Type.ServerConf in arrays do
-		if typeof(param2) == "table" then
-			copy[param1] = Index.Server(param1, param2)
-		else
-			copy[param2] = Index.Server(param2)
+
+	-- Use raw type narrowing via # operator to assume it's an array
+	if #arrays > 0 then
+		-- Narrow the type to {string}
+		local stringArray = arrays :: { string }
+		for _, param: string in ipairs(stringArray) do
+			copy[param] = Index.Server(param)
+		end
+	else
+		-- Narrow the type to {[string]: Type.ServerConf}
+		local dictArray = arrays :: { [string]: Type.ServerConf }
+		for key, conf in pairs(dictArray) do
+			copy[key] = Index.Server(key, conf)
 		end
 	end
+
 	return copy
 end
 
 function Index.fromClientArray(arrays: { string } | { [string]: Type.ClientConf }): Type.fromClientArray
 	Assert(not IsServer, `[Warp]: Calling .fromClientArray({arrays}) on server side (expected client side)`)
 	Assert(typeof(arrays) == "table", `[Warp]: Array must be a table type, got {typeof(arrays)}`)
-	local copy = {}
-	for param1, param2: string | Type.ClientConf in arrays do
-		if typeof(param2) == "table" then
-			copy[param1] = Index.Client(param1, param2)
-		else
-			copy[param2] = Index.Client(param2)
+
+	local copy: { [string]: Type.Client } = {}
+
+	if #arrays > 0 then
+		-- It's an array of strings
+		local stringArray = arrays :: { string }
+		for _, param in ipairs(stringArray) do
+			copy[param] = Index.Client(param)
+		end
+	else
+		-- It's a dictionary of ClientConf
+		local confDict = arrays :: { [string]: Type.ClientConf }
+		for key, conf in pairs(confDict) do
+			copy[key] = Index.Client(key, conf)
 		end
 	end
+
 	return copy
 end
 
