@@ -51,36 +51,31 @@ local RequestEvent = Event.Request
 
 RateLimit.Protect()
 
+local function ensure(tbl, key)
+	if not tbl[key] then 
+		tbl[key] = {} 
+	end
+	return tbl[key]
+end
+
 local function initializeEachPlayer(player: Player)
 	if not player then return end
+	if not next(registeredIdentifier) then return end
 	if not queueOut[player] then
 		queueOut[player] = {}
 	end
 	for Identifier: string in registeredIdentifier do
 		if not player then break end
-		if not queueOut[player][Identifier] then
-			queueOut[player][Identifier] = {}
-		end
-		if not serverRequestQueue[Identifier] then
-			serverRequestQueue[Identifier] = {}
-		end
-		if not serverRequestQueue[Identifier][player] then
-			serverRequestQueue[Identifier][player] = {}
-		end
-		if not queueOutRequest[1][Identifier] then
-			queueOutRequest[1][Identifier] = {}
-		end
-		if not queueOutRequest[2][Identifier] then
-			queueOutRequest[2][Identifier] = {}
-		end
-		if not queueInRequest[1][Identifier][player] then
-			queueInRequest[1][Identifier][player] = {}
-			queueInRequest[2][Identifier][player] = {}
-		end
-		if not queueOutRequest[1][Identifier][player] then
-			queueOutRequest[1][Identifier][player] = {}
-			queueOutRequest[2][Identifier][player] = {}
-		end
+		ensure(queueOut, player)
+		ensure(queueOut[player], Identifier)
+		ensure(serverRequestQueue, Identifier)
+		ensure(serverRequestQueue[Identifier], player)
+		ensure(queueOutRequest[1], Identifier)
+		ensure(queueOutRequest[2], Identifier)
+		ensure(queueInRequest[1][Identifier], player)
+		ensure(queueInRequest[2][Identifier], player)
+		ensure(queueOutRequest[1][Identifier], player)
+		ensure(queueOutRequest[2][Identifier], player)
 	end
 end
 
@@ -111,31 +106,19 @@ end)
 
 function ServerProcess.insertQueue(Identifier: string, reliable: boolean, player: Player, ...: any)
 	if not reliable then
-		if not unreliableServerQueue[Identifier] then
-			unreliableServerQueue[Identifier] = {}
-		end
-		if not unreliableServerQueue[Identifier][player] then
-			unreliableServerQueue[Identifier][player] = {}
-		end
+		ensure(unreliableServerQueue, Identifier)
+		ensure(unreliableServerQueue[Identifier], player)
 		table.insert(unreliableServerQueue[Identifier][player], { ... })
 		return
 	end
-	if not serverQueue[Identifier] then
-		serverQueue[Identifier] = {}
-	end
-	if not serverQueue[Identifier][player] then
-		serverQueue[Identifier][player] = {}
-	end
+	ensure(serverQueue, Identifier)
+	ensure(serverQueue[Identifier], player)
 	table.insert(serverQueue[Identifier][player], { ... })
 end
 
 function ServerProcess.insertRequest(Identifier: string, timeout: number, player: Player, ...: any)
-	if not serverRequestQueue[Identifier] then
-		serverRequestQueue[Identifier] = {}
-	end
-	if not serverRequestQueue[Identifier][player] then
-		serverRequestQueue[Identifier][player] = {}
-	end
+	ensure(serverRequestQueue, Identifier)
+	ensure(serverRequestQueue[Identifier], player)
 	local yieldThread: thread, start = coroutine.running(), os.clock()
 	local cancel = task.delay(timeout, function()
 		task.spawn(yieldThread, nil)
@@ -154,31 +137,15 @@ function ServerProcess.add(Identifier: string, originId: string, conf: Type.Serv
 
 		RateLimit.create(originId, conf.rateLimit and conf.rateLimit.maxEntrance or 200, conf.rateLimit and conf.rateLimit.interval or 2)
 
-		if not serverQueue[Identifier] then
-			serverQueue[Identifier] = {}
-		end
-		if not serverRequestQueue[Identifier] then
-			serverRequestQueue[Identifier] = {}
-		end
-		if not serverCallback[Identifier] then
-			serverCallback[Identifier] = {}
-		end
-		if not unreliableServerQueue[Identifier] then
-			unreliableServerQueue[Identifier] = {}
-		end
+		ensure(serverQueue, Identifier)
+		ensure(serverRequestQueue, Identifier)
+		ensure(serverCallback, Identifier)
+		ensure(unreliableServerQueue, Identifier)
 
-		if not queueInRequest[1][Identifier] then
-			queueInRequest[1][Identifier] = {}
-		end
-		if not queueInRequest[2][Identifier] then
-			queueInRequest[2][Identifier] = {}
-		end
-		if not queueOutRequest[1][Identifier] then
-			queueOutRequest[1][Identifier] = {}
-		end
-		if not queueOutRequest[2][Identifier] then
-			queueOutRequest[2][Identifier] = {}
-		end
+		ensure(queueInRequest[1], Identifier)
+		ensure(queueInRequest[2], Identifier)
+		ensure(queueOutRequest[1], Identifier)
+		ensure(queueOutRequest[2], Identifier)
 
 		for _, player: Player in ipairs(Players:GetPlayers()) do
 			task.spawn(initializeEachPlayer, player)
@@ -219,7 +186,7 @@ function ServerProcess.start()
 				end
 				unreliableServerQueue[Identifier][player] = nil
 			end
-			unreliableServerQueue[Identifier] = nil
+			--unreliableServerQueue[Identifier] = nil
 		end
 		-- Reliable
 		for Identifier: string, contents: { [Player]: { any } } in serverQueue do
@@ -231,7 +198,7 @@ function ServerProcess.start()
 				end
 				serverQueue[Identifier][player] = nil
 			end
-			serverQueue[Identifier] = nil
+			--serverQueue[Identifier] = nil
 		end
 		-- Sent new invokes
 		for Identifier: string, contents in queueOutRequest[1] do
@@ -241,7 +208,7 @@ function ServerProcess.start()
 				end
 				queueOutRequest[1][Identifier][player] = nil
 			end
-			queueOutRequest[1][Identifier] = nil
+			--queueOutRequest[1][Identifier] = nil
 		end
 		-- Sent returning invokes
 		for Identifier: string, contents in queueOutRequest[2] do
@@ -251,21 +218,21 @@ function ServerProcess.start()
 				end
 				queueOutRequest[2][Identifier][player] = nil
 			end
-			queueOutRequest[2][Identifier] = nil
+			--queueOutRequest[2][Identifier] = nil
 		end
 
 		for Identifier: string in registeredIdentifier do
 			if serverRequestQueue[Identifier] then
 				for player, content in serverRequestQueue[Identifier] do
-					if #content == 0 then serverRequestQueue[Identifier][player] = nil continue end
+					if #content == 0 then 
+						serverRequestQueue[Identifier][player] = nil 
+						continue 
+					end
+
 					for _, requestData in content do
 						if not requestData[3] then continue end
-						if not queueOutRequest[1][Identifier] then
-							queueOutRequest[1][Identifier] = {}
-						end
-						if not queueOutRequest[1][Identifier][player] then
-							queueOutRequest[1][Identifier][player] = {}
-						end
+						ensure(queueOutRequest[1], Identifier)
+						ensure(queueOutRequest[1][Identifier], player)
 						table.insert(queueOutRequest[1][Identifier][player], { requestData[1], requestData[3] })
 						requestData[3] = nil
 					end
@@ -287,16 +254,20 @@ function ServerProcess.start()
 							local packetData1 = packetDatas[i][1]
 							local packetData2 = packetDatas[i][2]
 							Spawn(function()
-								local requestReturn = { fn(player, table.unpack(packetData2)) }
-								if not queueOutRequest[2][Identifier] then
-									queueOutRequest[2][Identifier] = {}
+								local ok, result = pcall(fn, player, table.unpack(packetData2))
+								if ok then
+									if not queueOutRequest[2][Identifier] then
+										queueOutRequest[2][Identifier] = {}
+									end
+									if not queueOutRequest[2][Identifier][player] then
+										queueOutRequest[2][Identifier][player] = {}
+									end
+									table.insert(queueOutRequest[2][Identifier][player], { packetData1, result })
+									packetData1 = nil
+									packetData2 = nil
+								else
+									warn(`[Warp]: Error in callback for {Identifier}: {result}`)
 								end
-								if not queueOutRequest[2][Identifier][player] then
-									queueOutRequest[2][Identifier][player] = {}
-								end
-								table.insert(queueOutRequest[2][Identifier][player], { packetData1, requestReturn })
-								packetData1 = nil
-								packetData2 = nil
 							end)
 						end
 					end
@@ -316,7 +287,13 @@ function ServerProcess.start()
 							local serverRequest = data[i]
 							if not serverRequest then continue end
 							if serverRequest[1] == packetData[1] then
-								Spawn(serverRequest[2], table.unpack(packetData[2]))
+								--Spawn(serverRequest[2], table.unpack(packetData[2]))
+								Spawn(function()
+									local ok, err = pcall(serverRequest[2], table.unpack(packetData[2]))
+									if not ok then
+										warn(`[Warp]: Error in server request callback for {Identifier}: {err}`)
+									end
+								end)
 								table.remove(data, i)
 								break
 							end
@@ -327,35 +304,37 @@ function ServerProcess.start()
 			end
 		end
 	end)
+
 	local function onServerNetworkReceive(player: Player, Identifier: buffer | string, data: buffer, ref: { any }?)
 		if not Identifier or typeof(Identifier) ~= "buffer" or not data or typeof(data) ~= "buffer" then return end
 		Identifier = Buffer.convert(Identifier :: buffer)
+		if typeof(Identifier) ~= "string" then return end -- ensure it's string
 		if not registeredIdentifier[Identifier :: string] then return end
 		local read = Buffer.read(data, ref)
 		if not read then return end
 		local callback = serverCallback[Identifier :: string]
 		if not callback then return end
 		for _, fn: any in callback do
-			Spawn(fn, player, table.unpack(read))
+			--Spawn(fn, player, table.unpack(read))
+			Spawn(function()
+				local ok, err = pcall(fn, player, table.unpack(read))
+				if not ok then
+					warn(`[Warp]: Error in callback for {Identifier}: {err}`)
+				end
+			end)
 		end
 	end
+
+	-- Connect the events
 	ReliableEvent.OnServerEvent:Connect(onServerNetworkReceive)
 	UnreliableEvent.OnServerEvent:Connect(onServerNetworkReceive)
 	RequestEvent.OnServerEvent:Connect(function(player: Player, Identifier: any, action: string, data: any)
 		if not Identifier or not data then return end
 		Identifier = Buffer.convert(Identifier)
-		if not queueInRequest[1][Identifier][player] then
-			queueInRequest[1][Identifier][player] = {}
-		end
-		if not queueInRequest[2][Identifier][player] then
-			queueInRequest[2][Identifier][player] = {}
-		end
-		if not serverQueue[Identifier] then
-			serverQueue[Identifier] = {}
-		end
-		if not serverQueue[Identifier][player] then
-			serverQueue[Identifier][player] = {}
-		end
+		ensure(queueInRequest[1][Identifier], player)
+		ensure(queueInRequest[2][Identifier], player)
+		ensure(serverQueue, Identifier)
+		ensure(serverQueue[Identifier], player)
 		if action == "\1" then
 			table.insert(queueInRequest[1][Identifier][player], data)
 		else

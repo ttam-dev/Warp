@@ -1,4 +1,3 @@
---!native
 --!strict
 --!optimize 2
 local thread: thread?
@@ -12,10 +11,17 @@ end
 
 local function newThread(): ()
 	thread = coroutine.running()
-	while true do passer(coroutine.yield()) end
+	while true do 
+		passer(coroutine.yield()) 
+	end
 end
 
 return function<T...>(func: (T...) -> (), ...: T...): ()
-	if not thread then task.spawn(newThread) end
+	if not thread then 
+		task.spawn(newThread)
+		while thread == nil do
+			task.wait() -- pauses execution until newThread() runs and sets thread.
+		end
+	end
 	task.spawn(thread :: thread, func, ...)
 end

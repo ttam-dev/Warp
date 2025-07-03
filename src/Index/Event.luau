@@ -14,7 +14,9 @@ if RunService:IsServer() then
 		Instance.new("RemoteEvent", script).Name = "Request"
 	end
 elseif not script:FindFirstChild("Reliable") or not script:FindFirstChild("Unreliable") or not script:FindFirstChild("Request") then
-	repeat task.wait() until script:FindFirstChild("Reliable") and script:FindFirstChild("Unreliable") and script:FindFirstChild("Request")
+	repeat 
+		task.wait() 
+	until script:FindFirstChild("Reliable") and script:FindFirstChild("Unreliable") and script:FindFirstChild("Request")
 end
 
 return {

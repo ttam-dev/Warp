@@ -1,61 +1,34 @@
 --!strict
---!native
 --!optimize 2
-
 local Signal = {}
 Signal.__index = Signal
 
-local SignalPlus = require(script.SignalPlus)
+local DedicatedSignal = require(script.Dedicated)
 
 local Util = script.Parent.Util
 local Key = require(Util.Key)
 local Assert = require(Util.Assert)
 
--- Type definition for the Signal object
-type Signal = {
-	_core: any,
-	_connections: { [string]: any },
-	_id: string,
+local Signals = {}
 
-	Connect: (self: Signal, fn: (...any) -> (), optKey: string?) -> string,
-	Once: (self: Signal, fn: (...any) -> ()) -> string,
-	Disconnect: (self: Signal, key: string) -> (),
-	DisconnectAll: (self: Signal) -> (),
-	Wait: (self: Signal) -> (...any),
-	DeferFire: (self: Signal, ...any) -> (),
-	Fire: (self: Signal, ...any) -> (),
-	FireTo: (self: Signal, signalId: string, ...any) -> (),
-	Invoke: (self: Signal, key: string, ...any) -> (...any)?,
-	InvokeTo: (self: Signal, signalId: string, key: string, ...any) -> (...any)?,
-	Destroy: (self: Signal) -> ()
-}
-
-local Signals: { [string]: Signal } = {}
-
-function Signal.new(identifier: string): Signal
-	Assert(typeof(identifier) == "string", `[Signal]: Identifier must be a string, got {typeof(identifier)}`)
-
-	if not Signals[identifier] then
-		local self = setmetatable({}, Signal) :: any
-		local core = SignalPlus()
-		Assert(type(core.Connect) == "function", "[Signal]: Invalid SignalPlus core object")
-		self._core = core
-		self._connections = {}
-		self._id = identifier
-		Signals[identifier] = self
+function Signal.new(Identifier: string)
+	Assert(typeof(Identifier) == "string", `[Signal]: Identifier must be a string type, got {typeof(Identifier)}`)
+	if not Signals[Identifier] then
+		local signal = setmetatable({}, Signal)
+		Signals[Identifier] = signal
+		return signal
 	end
-
-	return Signals[identifier]
+	return Signals[Identifier]
 end
 
 function Signal:Connect(fn: (...any) -> (), optKey: string?): string
-	local key = optKey or tostring(Key())
-	self._connections[key] = self._core:Connect(fn)
-	return key
+	local key: string = optKey or tostring(Key())
+	self[key] = DedicatedSignal(self, fn)
+	return key :: any
 end
 
 function Signal:Once(fn: (...any) -> ()): string
-	local key = ""
+	local key: string
 	key = self:Connect(function(...: any)
 		self:Disconnect(key)
 		task.spawn(fn, ...)
@@ -64,67 +37,54 @@ function Signal:Once(fn: (...any) -> ()): string
 end
 
 function Signal:Disconnect(key: string)
-	local conn = self._connections[key]
-	if conn then
-		conn:Disconnect()
-		self._connections[key] = nil
+	if not self[key] then return end
+	self[key]:Disconnect()
+	self[key] = nil
+end
+
+function Signal:DisconnectAll(): ()
+	table.clear(self)
+end
+
+function Signal:Wait(): number
+	local t, thread = os.clock(), coroutine.running()
+	self:Once(function()
+		task.spawn(thread, os.clock()-t)
+	end)
+	return coroutine.yield()
+end
+
+function Signal:DeferFire(...: any): ()
+	for _, handle in self do
+		task.defer(handle.fn, ...)
 	end
 end
 
-function Signal:DisconnectAll()
-	for key, conn in pairs(self._connections) do
-		conn:Disconnect()
-	end
-	table.clear(self._connections)
-end
-
-function Signal:Wait(): ...any
-	return self._core:Wait()
-end
-
-function Signal:DeferFire(...: any)
-	for _, conn in pairs(self._connections) do
-		local handler = (conn :: any)._handler
-		if type(handler) == "function" then
-			task.defer(handler, ...)
-		end
+function Signal:Fire(...: any): ()
+	for _, handle in self do
+		task.spawn(handle.fn, ...)
 	end
 end
 
-function Signal:Fire(...: any)
-	self._core:Fire(...)
+function Signal:FireTo(signal: string, ...: any): ()
+	local to = Signals[signal]
+	if not to then return end
+	Signal.Fire(to, ...)
 end
 
-function Signal:FireTo(signalId: string, ...: any)
-	local target = Signals[signalId]
-	if target then
-		target:Fire(...)
-	end
+function Signal:Invoke(key: string, ...: any): ()
+	local to = self[key]
+	if not to then return end
+	return to.fn(...)
 end
 
-function Signal:Invoke(key: string, ...: any): ...any
-	local conn = self._connections[key]
-	local handler = conn and (conn :: any)._handler
-	if type(handler) == "function" then
-		return handler(...)
-	end
+function Signal:InvokeTo(signal: string, key: string, ...: any): ()
+	if not Signals[signal] then return end
+	return Signal.Invoke(Signals[signal], key, ...)
 end
 
-function Signal:InvokeTo(signalId: string, key: string, ...: any): ...any
-	local target = Signals[signalId]
-	if target then
-		local invoke = target.Invoke -- bind method to local variable
-		if invoke then
-			return invoke(target, key, ...) -- call using dot-syntax with self manually
-		end
-	end
-end
-
-function Signal:Destroy()
+function Signal:Destroy(): ()
 	self:DisconnectAll()
-	self._core = nil
-	self._connections = nil
-	Signals[self._id] = nil
 	setmetatable(self, nil)
 end
 

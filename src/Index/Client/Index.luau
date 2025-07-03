@@ -4,7 +4,6 @@
 local Client = {}
 Client.__index = Client
 
-local Players = game:GetService("Players")
 local Util = script.Parent.Parent.Util
 
 local Type = require(script.Parent.Parent.Type)

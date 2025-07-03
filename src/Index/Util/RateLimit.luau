@@ -11,7 +11,7 @@ local Signal = require(script.Parent.Parent.Signal)("Warp_OnSpamSignal")
 local map, activity, meta = {}, {}, {}
 setmetatable(meta , {
 	__index = map,
-	__newindex  = function(self, key, value)
+	__newindex  = function(_, key, value)
 		if not activity[key] then
 			activity[key] = os.clock()
 		end
@@ -36,29 +36,46 @@ local function onReceived(player: Player)
 	meta[player] += 1
 end
 
+local function onPlayerLeaved(player: Player)
+	meta[player] = nil
+	activity[player] = nil
+	map[player] = nil
+end
+
 function RateLimit.create(Identifier: string, entrance: number?, interval: number?)
-	Assert(typeof(Identifier) == "string", "Identifier must a string type.")
+	Assert(typeof(Identifier) == "string", "Identifier must be a string.")
+
 	if RunService:IsServer() then
-		Assert(typeof(entrance) == "number", "entrance must a number type.")
-		Assert(entrance :: number > 0, "entrance must above 0.")
+		Assert(typeof(entrance) == "number", "entrance must be a number.")
+		Assert(entrance > 0, "entrance must be greater than 0.")
 		Reliable:SetAttribute(Identifier.."_ent", entrance)
 		Reliable:SetAttribute(Identifier.."_int", interval)
 	else
-		while (not Reliable:GetAttribute(Identifier.."_ent")) or (not Reliable:GetAttribute(Identifier.."_int")) do
+		while not Reliable:GetAttribute(Identifier.."_ent") or not Reliable:GetAttribute(Identifier.."_int") do
 			task.wait(0.1)
 		end
 		entrance = tonumber(Reliable:GetAttribute(Identifier.."_ent"))
 		interval = tonumber(Reliable:GetAttribute(Identifier.."_int"))
 	end
+
+	-- Final check to make type system and runtime happy *lol*
+	Assert(entrance and typeof(entrance) == "number", `Missing "entrance" parameters for {Identifier}`)
+	Assert(interval and typeof(interval) == "number", `Missing "interval" parameters for {Identifier}`)
+
+	local entrance_: number = entrance :: number
+	local interval_: number = interval :: number
+
 	local entrances: number = 0
+	local lastReset = os.clock()
+
 	return function(incoming: number?): boolean
-		if entrances == 0 then
-			task.delay(interval, function()
-				entrances = 0
-			end)
+		local now = os.clock()
+		if now - lastReset >= interval_ then
+			lastReset = now
+			entrances = 0
 		end
 		entrances += incoming or 1
-		return (entrances <= entrance :: number)
+		return entrances <= entrance_
 	end
 end
 
@@ -71,5 +88,7 @@ function RateLimit.Protect()
 	Unreliable.OnServerEvent:Connect(onReceived)
 	Request.OnServerEvent:Connect(onReceived)
 end
+
+game:GetService("Players").PlayerRemoving:Connect(onPlayerLeaved)
 
 return RateLimit :: typeof(RateLimit)

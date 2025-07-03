@@ -34,7 +34,7 @@ function SerDes.increment(Identifier: string, timeout: number?): number
 		end)
 		return coroutine.yield() -- yield
 	end
-	return Event:GetAttribute(Identifier)
+	return Event:GetAttribute(Identifier) :: number
 end
 
 function SerDes.decrement()

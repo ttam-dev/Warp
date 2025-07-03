@@ -44,24 +44,25 @@ local ReliableEvent = Event.Reliable
 local UnreliableEvent = Event.Unreliable
 local RequestEvent = Event.Request
 
+local function ensure(tbl, key)
+	if not tbl[key] then 
+		tbl[key] = {} 
+	end
+	return tbl[key]
+end
+
 function ClientProcess.insertQueue(Identifier: string, reliable: boolean, ...: any)
 	if not reliable then
-		if not unreliableClientQueue[Identifier] then
-			unreliableClientQueue[Identifier] = {}
-		end
+		ensure(unreliableClientQueue, Identifier)
 		table.insert(unreliableClientQueue[Identifier], { ... })
 		return
 	end
-	if not clientQueue[Identifier] then
-		clientQueue[Identifier] = {}
-	end
+	ensure(clientQueue, Identifier)
 	table.insert(clientQueue[Identifier], { ... })
 end
 
 function ClientProcess.insertRequest(Identifier: string, timeout: number, ...: any)
-	if not clientRequestQueue[Identifier] then
-		clientRequestQueue[Identifier] = {}
-	end
+	ensure(clientRequestQueue, Identifier)
 	local yieldThread: thread, start = coroutine.running(), os.clock()
 	local cancel = task.delay(timeout, function()
 		task.spawn(yieldThread, nil)
@@ -74,38 +75,22 @@ function ClientProcess.insertRequest(Identifier: string, timeout: number, ...: a
 	return coroutine.yield()
 end
 
-function ClientProcess.add(Identifier: any, originId: string, conf: Type.ClientConf)
+function ClientProcess.add(Identifier: any, originId: string, _: Type.ClientConf)
 	if not registeredIdentifier[Identifier] then
 		registeredIdentifier[Identifier] = true
 
 		if not clientRatelimit[Identifier] then
 			clientRatelimit[Identifier] = RateLimit.create(originId)
 		end
-		if not clientQueue[Identifier] then
-			clientQueue[Identifier] = {}
-		end
-		if not unreliableClientQueue[Identifier] then
-			unreliableClientQueue[Identifier] = {}
-		end
-		if not clientRequestQueue[Identifier] then
-			clientRequestQueue[Identifier] = {}
-		end
-		if not clientCallback[Identifier] then
-			clientCallback[Identifier] = {}
-		end
 
-		if not queueOutRequest[1][Identifier] then
-			queueOutRequest[1][Identifier] = {}
-		end
-		if not queueOutRequest[2][Identifier] then
-			queueOutRequest[2][Identifier] = {}
-		end
-		if not queueInRequest[1][Identifier] then
-			queueInRequest[1][Identifier] = {}
-		end
-		if not queueInRequest[2][Identifier] then
-			queueInRequest[2][Identifier] = {}
-		end
+		ensure(clientQueue, Identifier)
+		ensure(unreliableClientQueue, Identifier)
+		ensure(clientRequestQueue, Identifier)
+		ensure(clientCallback, Identifier)
+		ensure(queueOutRequest[1], Identifier)
+		ensure(queueOutRequest[2], Identifier)
+		ensure(queueInRequest[1], Identifier)
+		ensure(queueInRequest[2], Identifier)
 	end
 end
 
@@ -172,9 +157,7 @@ function ClientProcess.start()
 			if clientRequestQueue[Identifier] then
 				for _, requestData in clientRequestQueue[Identifier] do
 					if not requestData[3] then continue end
-					if not queueOutRequest[1][Identifier] then
-						queueOutRequest[1][Identifier] = {}
-					end
+					ensure(queueOutRequest[1], Identifier)
 					table.insert(queueOutRequest[1][Identifier], { requestData[1], requestData[3] })
 					requestData[3] = nil
 				end
@@ -218,7 +201,13 @@ function ClientProcess.start()
 								local clientRequest = clientRequestQueue[Identifier][y]
 								if not clientRequest then continue end
 								if clientRequest[1] == packetData[1] then
-									Spawn(clientRequest[2], table.unpack(packetData[2]))
+									--Spawn(clientRequest[2], table.unpack(packetData[2]))
+									Spawn(function()
+										local ok, err = pcall(clientRequest[2], table.unpack(packetData[2]))
+										if not ok then
+											warn(`[Warp]: Error in client request callback for {Identifier}: {err}`)
+										end
+									end)
 									table.remove(clientRequestQueue[Identifier], y)
 									break
 								end
@@ -230,18 +219,27 @@ function ClientProcess.start()
 			end
 		end
 	end)
+
 	local function onClientNetworkReceive(Identifier: buffer | string, data: buffer, ref: { any }?)
 		if not Identifier or typeof(Identifier) ~= "buffer" or not data or typeof(data) ~= "buffer" then return end
 		Identifier = Buffer.convert(Identifier)
+		if typeof(Identifier) ~= "string" then return end -- ensure it's string
 		if not registeredIdentifier[Identifier :: string] then return end
 		local read = Buffer.read(data, ref)
 		if not read then return end
 		local callback = clientCallback[Identifier :: string]
 		if not callback then return end
 		for _, fn: any in callback do
-			Spawn(fn, table.unpack(read))
+			--Spawn(fn, table.unpack(read))
+			Spawn(function()
+				local ok, result = pcall(fn, table.unpack(read))
+				if not ok then
+					warn(`[Warp]: Error in callback for {Identifier}: {result}`)
+				end
+			end)
 		end
 	end
+
 	ReliableEvent.OnClientEvent:Connect(onClientNetworkReceive)
 	UnreliableEvent.OnClientEvent:Connect(onClientNetworkReceive)
 	RequestEvent.OnClientEvent:Connect(function(Identifier: any, action: string, data)
