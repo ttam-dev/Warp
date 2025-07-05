@@ -1,5 +1,4 @@
 --!strict
---!native
 --!optimize 2
 local Server = {}
 Server.__index = Server
@@ -34,20 +33,20 @@ function Server:Fire(reliable: boolean, player: Player, ...: any)
 	ServerProcess.insertQueue(self.id, reliable, player, ...)
 end
 
-function Server:Fires(reliable: boolean, ...: any)
+function Server:FireAll(reliable: boolean, ...: any)
 	for _, player: Player in ipairs(Players:GetPlayers()) do
 		ServerProcess.insertQueue(self.id, reliable, player, ...)
 	end
 end
 
-function Server:FireExcept(reliable: boolean, except: { Player }, ...: any)
+function Server:FireAllExcept(reliable: boolean, except: { Player }, ...: any)
 	for _, player: Player in ipairs(Players:GetPlayers()) do
 		if table.find(except, player) then continue end
 		ServerProcess.insertQueue(self.id, reliable, player, ...)
 	end
 end
 
-function Server:FireIn(reliable: boolean, range: number, from: Vector3, data: { any }, except: { Player }?)
+function Server:FireAllIn(reliable: boolean, range: number, from: Vector3, data: { any }, except: { Player }?)
 	for _, player: Player in ipairs(Players:GetPlayers()) do
 		if (except and table.find(except, player)) or not player.Character or not player.Character.PrimaryPart or (player.Character.PrimaryPart.Position - from).Magnitude < range then continue end
 		ServerProcess.insertQueue(self.id, reliable, player, table.unpack(data))
@@ -59,6 +58,7 @@ function Server:Invoke(timeout: number, player: Player, ...: any): any
 end
 
 function Server:Connect(callback: (plyer: Player, args: any) -> ()): string
+	Assert(typeof(callback) == "function", "Callback must be a function.", 2)
 	local key = tostring(Key())
 	table.insert(self.fn, key)
 	ServerProcess.addCallback(self.id, key, callback)
@@ -67,6 +67,7 @@ function Server:Connect(callback: (plyer: Player, args: any) -> ()): string
 end
 
 function Server:Once(callback: (plyer: Player, args: any) -> ()): string
+	Assert(typeof(callback) == "function", "Callback must be a function.", 2)
 	local key = tostring(Key())
 	table.insert(self.fn, key)
 	self.IsConnected = #self.fn > 0
@@ -92,7 +93,7 @@ function Server:DisconnectAll()
 end
 
 function Server:Disconnect(key: string): boolean
-	Assert(typeof(key) == "string", "Key must be a string type.")
+	Assert(typeof(key) == "string", "Key must be a string.", 2)
 	ServerProcess.removeCallback(self.id, key)
 	table.remove(self.fn, table.find(self.fn, key))
 	self.IsConnected = #self.fn > 0

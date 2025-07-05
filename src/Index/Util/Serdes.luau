@@ -8,9 +8,9 @@ local Event = require(script.Parent.Parent.Event).Reliable
 local Assert = require(script.Parent.Assert)
 
 function SerDes.increment(Identifier: string, timeout: number?): number
-	Assert(typeof(Identifier) == "string", "Identifier must be a string type.")
+	Assert(typeof(Identifier) == "string", "Identifier must be a string type.", 2)
 	if RunService:IsServer() then
-		Assert(SerInt < 255, "reached max 255 identifiers.")
+		Assert(SerInt < 255, "reached max 255 identifiers.", 2)
 		if not Event:GetAttribute(Identifier) then
 			SerInt += 1
 			Event:SetAttribute(`{SerInt}`, Identifier)
@@ -21,7 +21,7 @@ function SerDes.increment(Identifier: string, timeout: number?): number
 		local yieldThread: thread = coroutine.running()
 		local cancel = task.delay(timeout or 10, function() -- yield cancelation (timerout)
 			task.spawn(yieldThread, nil)
-			error(`Serdes: {Identifier} is taking too long to retrieve, seems like it's not replicated on server.`, 2)
+			Assert(false, `{Identifier} is taking too long to retrieve, seems like it's not replicated on server.`, 2)
 		end)
 		task.spawn(function()
 			while coroutine.status(cancel) ~= "dead" and task.wait(0.04) do -- let it loop for yields! 1/24

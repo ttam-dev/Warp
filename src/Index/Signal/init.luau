@@ -12,7 +12,7 @@ local Assert = require(Util.Assert)
 local Signals = {}
 
 function Signal.new(Identifier: string)
-	Assert(typeof(Identifier) == "string", `[Signal]: Identifier must be a string type, got {typeof(Identifier)}`)
+	Assert(typeof(Identifier) == "string", `Identifier must be a string type, got {typeof(Identifier)}`, 2)
 	if not Signals[Identifier] then
 		local signal = setmetatable({}, Signal)
 		Signals[Identifier] = signal

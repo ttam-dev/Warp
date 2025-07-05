@@ -25,20 +25,20 @@ end
 Index.OnSpamSignal = onSpamSignal
 
 function Index.Server(Identifier: string, conf: Type.ServerConf?): Type.Server
-	Assert(IsServer, `[Warp]: Calling .Server({Identifier}) on client side (expected server side)`)
-	Assert(typeof(Identifier) == "string", `[Warp]: Identifier must be a string type, got {typeof(Identifier)}`)
+	Assert(IsServer, `Calling .Server({Identifier}) on client side (expected server side)`, 2)
+	Assert(typeof(Identifier) == "string", `Identifier must be a string type, got {typeof(Identifier)}`, 2)
 	return require(Server.Index)(Identifier, conf) :: Type.Server
 end
 
 function Index.Client(Identifier: string, conf: Type.ClientConf?): Type.Client
-	Assert(not IsServer, `[Warp]: Calling .Client({Identifier}) on server side (expected client side)`)
-	Assert(typeof(Identifier) == "string", `[Warp]: Identifier must be a string type, got {typeof(Identifier)}`)
+	Assert(not IsServer, `Calling .Client({Identifier}) on server side (expected client side)`, 2)
+	Assert(typeof(Identifier) == "string", `Identifier must be a string type, got {typeof(Identifier)}`, 2)
 	return require(Client.Index)(Identifier, conf) :: Type.Client
 end
 
 function Index.fromServerArray(arrays: { string } | { [string]: Type.ServerConf }): Type.fromServerArray
-	Assert(IsServer, `[Warp]: Calling .fromServerArray({arrays}) on client side (expected server side)`)
-	Assert(typeof(arrays) == "table", "[Warp]: Array must be a table type, got {typeof(arrays)}")
+	Assert(IsServer, `Calling .fromServerArray({arrays}) on client side (expected server side)`, 2)
+	Assert(typeof(arrays) == "table", "Array must be a table type, got {typeof(arrays)}", 2)
 	local copy: { [string]: Type.Server } = {}
 	for param1: string | number, param2: string | Type.ServerConf in pairs(arrays) do
 		if typeof(param2) == "table" and typeof(param1) == "string" then
@@ -53,8 +53,8 @@ function Index.fromServerArray(arrays: { string } | { [string]: Type.ServerConf 
 end
 
 function Index.fromClientArray(arrays: { string } | { [string]: Type.ClientConf }): Type.fromClientArray
-	Assert(not IsServer, `[Warp]: Calling .fromClientArray({arrays}) on server side (expected client side)`)
-	Assert(typeof(arrays) == "table", `[Warp]: Array must be a table type, got {typeof(arrays)}`)
+	Assert(not IsServer, `Calling .fromClientArray({arrays}) on server side (expected client side)`, 2)
+	Assert(typeof(arrays) == "table", `Array must be a table type, got {typeof(arrays)}`, 2)
 	local copy = {}
 	for param1: string | number, param2: string | Type.ClientConf in pairs(arrays) do
 		if typeof(param2) == "table" and typeof(param1) == "string" then
@@ -73,7 +73,7 @@ function Index.Signal(Identifier: string)
 end
 
 function Index.fromSignalArray(arrays: { any })
-	Assert(typeof(arrays) == "table", `[Warp]: Array must be a table type, got {typeof(arrays)}`)
+	Assert(typeof(arrays) == "table", `Array must be a table type, got {typeof(arrays)}`, 2)
 	local copy = {}
 	for _, identifier: string in arrays do
 		copy[identifier] = Index.Signal(identifier)

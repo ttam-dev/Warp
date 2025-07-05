@@ -3,6 +3,7 @@
 local RateLimit = {}
 
 local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
 local Assert = require(script.Parent.Assert)
 local Events = require(script.Parent.Parent.Event)
 local Reliable, Unreliable, Request = Events.Reliable, Events.Unreliable, Events.Request
@@ -12,6 +13,9 @@ local map, activity, meta = {}, {}, {}
 setmetatable(meta , {
 	__index = map,
 	__newindex  = function(_, key, value)
+		if typeof(value) ~= "number" then
+			return
+		end
 		if not activity[key] then
 			activity[key] = os.clock()
 		end
@@ -29,11 +33,13 @@ setmetatable(meta , {
 })
 
 local function onReceived(player: Player)
-	if not meta[player] then
-		meta[player] = 1
+	-- make sure the player is still valid and hasn't left
+	if not player or not player:IsDescendantOf(Players) then
 		return
 	end
-	meta[player] += 1
+
+	local current = meta[player] or 0
+	meta[player] = current + 1
 end
 
 local function onPlayerLeaved(player: Player)
@@ -43,11 +49,11 @@ local function onPlayerLeaved(player: Player)
 end
 
 function RateLimit.create(Identifier: string, entrance: number?, interval: number?)
-	Assert(typeof(Identifier) == "string", "Identifier must be a string.")
+	Assert(typeof(Identifier) == "string", "Identifier must be a string.", 2)
 
 	if RunService:IsServer() then
-		Assert(typeof(entrance) == "number", "entrance must be a number.")
-		Assert(entrance > 0, "entrance must be greater than 0.")
+		Assert(typeof(entrance) == "number", "entrance must be a number.", 2)
+		Assert(entrance > 0, "entrance must be greater than 0.", 2)
 		Reliable:SetAttribute(Identifier.."_ent", entrance)
 		Reliable:SetAttribute(Identifier.."_int", interval)
 	else
@@ -59,8 +65,8 @@ function RateLimit.create(Identifier: string, entrance: number?, interval: numbe
 	end
 
 	-- Final check to make type system and runtime happy *lol*
-	Assert(entrance and typeof(entrance) == "number", `Missing "entrance" parameters for {Identifier}`)
-	Assert(interval and typeof(interval) == "number", `Missing "interval" parameters for {Identifier}`)
+	Assert(entrance and typeof(entrance) == "number", `Missing "entrance" parameters for {Identifier}`, 2)
+	Assert(interval and typeof(interval) == "number", `Missing "interval" parameters for {Identifier}`, 2)
 
 	local entrance_: number = entrance :: number
 	local interval_: number = interval :: number

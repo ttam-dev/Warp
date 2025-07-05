@@ -1,5 +1,4 @@
 --!strict
---!native
 --!optimize 2
 local Client = {}
 Client.__index = Client
@@ -38,6 +37,7 @@ function Client:Invoke(timeout: number, ...: any): any
 end
 
 function Client:Connect(callback: (args: any) -> ()): string
+	Assert(typeof(callback) == "function", "Callback must be a function.", 2)
 	local key = tostring(Key())
 	table.insert(self.fn, key)
 	self.IsConnected = #self.fn > 0
@@ -46,6 +46,7 @@ function Client:Connect(callback: (args: any) -> ()): string
 end
 
 function Client:Once(callback: (args: any) -> ()): string
+	Assert(typeof(callback) == "function", "Callback must be a function.", 2)
 	local key = tostring(Key())
 	table.insert(self.fn, key)
 	self.IsConnected = #self.fn > 0
@@ -71,7 +72,7 @@ function Client:DisconnectAll()
 end
 
 function Client:Disconnect(key: string)
-	Assert(typeof(key) == "string", "Key must be a string type.")
+	Assert(typeof(key) == "string", "Key must be a string type.", 2)
 	ClientProcess.removeCallback(self.id, key)
 	table.remove(self.fn, table.find(self.fn, key))
 	self.IsConnected = #self.fn > 0
