@@ -34,13 +34,18 @@ function SerDes.increment(Identifier: string, timeout: number?): number
 		end)
 		return coroutine.yield() -- yield
 	end
-	return Event:GetAttribute(Identifier)
+
+	return Event:GetAttribute(Identifier) :: number -- return the identifier
 end
 
 function SerDes.decrement()
-	if not RunService:IsServer() or SerInt <= 0 then return end
+	if not RunService:IsServer() or SerInt <= 0 then
+		return
+	end
 	local Identifier = Event:GetAttribute(`{SerInt}`)
-	if not Identifier then return end
+	if not Identifier then
+		return
+	end
 	Event:SetAttribute(`{Identifier}`, nil)
 	Event:SetAttribute(`{SerInt}`, nil)
 	SerInt -= 1

@@ -1,7 +1,6 @@
--- Warp Library (@Eternity_Devs)
+-- Warp Library (orginal by @Eternity_Devs, modified by @ttam-dev)
 -- version 1.0.14
 --!strict
---!native
 --!optimize 2
 local Index = require(script.Index)
 

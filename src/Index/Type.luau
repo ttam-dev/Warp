@@ -31,7 +31,9 @@ export type Client = {
 
 export type Server = {
 	Fire: (self: Server, reliable: boolean, player: Player, ...any) -> (),
-	Fires: (self: Server, reliable: boolean, ...any) -> (),
+	FireAll: (self: Server, reliable: boolean, ...any) -> (),
+	FireAllExcept: (self: Server, reliable: boolean, except: { Player }, ...any) -> (),
+	FireAllIn: (self: Server, reliable: boolean, range: number, from: Vector3, data: { any }, except: { Player }?) -> (),
 	Invoke: (self: Server, timeout: number, player: Player, ...any) -> any,
 	Connect: (self: Server, callback: (player: Player, ...any) -> ()) -> Middleware,
 	Once: (self: Server, callback: (player: Player, ...any) -> ()) -> Middleware,

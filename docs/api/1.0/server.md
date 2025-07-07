@@ -137,7 +137,7 @@ Remote:Fire(true, player, "Hello World!")
 ```
 :::
 
-## `:Fires` <Badge type="tip" text="Server Only" />
+## `:FireAll` <Badge type="tip" text="Server Only" />
 
 Fire the event to all clients.
 
@@ -150,13 +150,13 @@ Fire the event to all clients.
 ```
 
 ```lua [Example]
-Remote:Fires(true, "Hello World!")
+Remote:FireAll(true, "Hello World!")
 ```
 :::
 
-## `:FireExcept` <Badge type="tip" text="Server Only" />
+## `:FireAllExcept` <Badge type="tip" text="Server Only" />
 
-Fire the event to all clients but except a players.
+Fire the event to all clients but except some players.
 
 ::: code-group
 ```lua [Variable]
@@ -168,7 +168,27 @@ Fire the event to all clients but except a players.
 ```
 
 ```lua [Example]
-Remote:FireExcept(true, { Players.Eternity_Devs, Players.Player2 }, "Hello World!") -- this will sent to all players except { Players.Eternity_Devs, Players.Player2 }.
+Remote:FireAllExcept(true, { Players.Player1, Players.Player2 }, "Hello World!") -- this will sent to all players except { Players.Player1, Players.Player2 }.
+```
+:::
+
+## `:FireAllIn` <Badge type="tip" text="Server Only" />
+
+Fire the event to all players within a certain range from a position, optionally excluding some players.
+
+::: code-group
+```lua [Variable]
+(
+	reliable: boolean,
+	range: number,
+	from: Vector3,
+	data: { any },
+	except: { Player }?
+)
+```
+
+```lua [Example]
+Remote:FireAllIn(true, 100, Vector3.new(0, 5, 0), { "Hello World!", 123 }, { Players.Player1, Players.Player2 }) -- sends to all players within 100 studs of (0,5,0) except Players.Player1 and Players.Player2.
 ```
 :::
 

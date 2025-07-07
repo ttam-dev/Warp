@@ -21,7 +21,7 @@ Ping:Connect(function(player, ping)
     if ping then
         print("PING!")
         Pong:Fire(true, player, "pong!")
-        PingAll:Fires(true, "ey!")
+        PingAll:FireAll(true, "ey!")
     end
 end)
 ```
